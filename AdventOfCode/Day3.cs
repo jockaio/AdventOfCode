@@ -27,23 +27,31 @@ namespace AdventOfCode
 
         public void SolvePartOne()
         {
-            var coordinatesA = MapWire(WireA);
-            var coordinatesB = MapWire(WireB);
+            List<Intersection> intersections = GetIntersections();
 
-            List<KeyValuePair<int, int>> intersections = FindIntersections(coordinatesA, coordinatesB);
-
-            List<int> results = intersections.Select(x => Math.Abs(x.Key) + Math.Abs(x.Value)).ToList();
+            List<int> results = intersections.Select(x => Math.Abs(x.Position.Key) + Math.Abs(x.Position.Value)).ToList();
             results.Remove(0);
 
             Console.WriteLine(results.Min());
         }
 
-        private List<KeyValuePair<int, int>> FindIntersections(List<Section> coordinatesA, List<Section> coordinatesB)
+        private List<Intersection> GetIntersections()
         {
-            List<KeyValuePair<int, int>> result = new List<KeyValuePair<int, int>>();
+            var coordinatesA = MapWire(WireA);
+            var coordinatesB = MapWire(WireB);
+
+            List<Intersection> intersections = FindIntersections(coordinatesA, coordinatesB);
+            return intersections;
+        }
+
+        private List<Intersection> FindIntersections(List<Section> coordinatesA, List<Section> coordinatesB)
+        {
+            int totalA = 0, totalB = 0;
+            List<Intersection> result = new List<Intersection>();
 
             foreach (var sectionA in coordinatesA)
             {
+                totalB = 0;
                 foreach (var sectionB in coordinatesB)
                 {
                     if (sectionA.From.X == sectionA.To.X && sectionB.From.Y == sectionB.To.Y)
@@ -58,7 +66,26 @@ namespace AdventOfCode
 
                             if (sectionA.From.X >= minB && sectionA.From.X <= maxB)
                             {
-                                result.Add(new KeyValuePair<int, int>(sectionA.From.X, sectionB.To.Y));
+                                var crossingPosition = new KeyValuePair<int, int>(sectionA.From.X, sectionB.To.Y);
+
+                                int crossingOffsetB = GetSteps(new Section
+                                {
+                                    From = sectionB.From,
+                                    To = new Coordinate(crossingPosition.Key, crossingPosition.Value)
+                                });
+
+                                int crossingOffsetA = GetSteps(new Section
+                                {
+                                    From = sectionA.From,
+                                    To = new Coordinate(crossingPosition.Key, crossingPosition.Value)
+                                });
+
+                                result.Add(
+                                    new Intersection
+                                    {
+                                        Position = crossingPosition,
+                                        TotalSteps = totalA + totalB + crossingOffsetB + crossingOffsetA
+                                    });
                             }
                         }
                     }
@@ -75,14 +102,49 @@ namespace AdventOfCode
 
                             if (sectionA.From.Y >= minB && sectionA.From.Y <= maxB)
                             {
-                                result.Add(new KeyValuePair<int, int>(sectionB.To.X, sectionA.From.Y));
+                                var crossingPosition = new KeyValuePair<int, int>(sectionB.To.X, sectionA.From.Y);
+
+                                int crossingOffsetB = GetSteps(new Section
+                                {
+                                    From = sectionB.From,
+                                    To = new Coordinate(crossingPosition.Key, crossingPosition.Value)
+                                });
+
+                                int crossingOffsetA = GetSteps(new Section
+                                {
+                                    From = sectionA.From,
+                                    To = new Coordinate(crossingPosition.Key, crossingPosition.Value)
+                                });
+
+                                result.Add(
+                                    new Intersection
+                                    {
+                                        Position = crossingPosition,
+                                        TotalSteps = totalA + totalB + crossingOffsetB + crossingOffsetA
+                                    });
                             }
                         }
                     }
+
+                    totalB += GetSteps(sectionB);
                 }
+
+                totalA += GetSteps(sectionA);
             }
 
             return result;
+        }
+
+        private int GetSteps(Section section)
+        {
+            if (section.From.X == section.To.X)
+            {
+                return Math.Abs(section.From.Y - section.To.Y);
+            }
+            else
+            {
+                return Math.Abs(section.From.X - section.To.X);
+            }
         }
 
         private List<Section> MapWire(List<KeyValuePair<string, int>> wire)
@@ -141,7 +203,13 @@ namespace AdventOfCode
 
         public void SolvePartTwo()
         {
-            throw new NotImplementedException();
+            var intersections = GetIntersections();
+            if (intersections.Any(x => x.Position.Key == 0 && x.Position.Value == 0))
+            {
+                intersections.Remove(intersections.Where(x => x.Position.Key == 0 && x.Position.Value == 0).First());
+            }
+            var smallestTotal = intersections.Min(x => x.TotalSteps);
+            Console.WriteLine(smallestTotal);
         }
 
         private List<KeyValuePair<string, int>> ParseWirePath(List<string> input)
@@ -172,5 +240,11 @@ namespace AdventOfCode
 
         public int X { get; set; }
         public int Y { get; set; }
+    }
+
+    internal class Intersection
+    {
+        public int TotalSteps { get; set; }
+        public KeyValuePair<int, int> Position { get; set; }
     }
 }
